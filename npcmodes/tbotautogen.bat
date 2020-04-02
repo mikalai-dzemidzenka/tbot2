@@ -14,11 +14,11 @@ for /l %%x in (0, 1, 50) do (
    IF EXIST tbotcarsingle%%x.pwn DEL tbotcarsingle%%x.pwn /s  
    IF EXIST tbotfootsingle%%x.pwn DEL tbotfootsingle%%x.pwn /s
    (echo #include ^<a_npc^>
-   echo NextPlayback^(^) StartRecordingPlayback^(PLAYER_RECORDING_TYPE_DRIVER,"tbotcarsingle%%x"^);
+   echo NextPlayback^(^) StartRecordingPlayback^(PLAYER_RECORDING_TYPE_DRIVER,"tbotcar%%x"^);
    echo public OnNPCSpawn^(^) NextPlayback^(^);) > tbotcarsingle%%x.pwn
 
    (echo #include ^<a_npc^>
-   echo NextPlayback^(^) StartRecordingPlayback^(PLAYER_RECORDING_TYPE_ONFOOT,"tbotfootsingle%%x"^);
+   echo NextPlayback^(^) StartRecordingPlayback^(PLAYER_RECORDING_TYPE_ONFOOT,"tbotfoot%%x"^);
    echo public OnNPCSpawn^(^) NextPlayback^(^);) > tbotfootsingle%%x.pwn
 
    start ../pawno/pawncc.exe tbotcar%%x.pwn

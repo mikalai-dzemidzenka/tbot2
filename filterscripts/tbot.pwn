@@ -25,6 +25,10 @@ bots[botId][] = {27,520,240,false,...};
 
 */
 
+
+new playerGroup[MAX_PLAYERS];
+new botGroup[MAX_BOTS];
+
 new bots[MAX_BOTS];//bots absolute id (-1 if not connected)
 new botCar[MAX_BOTS];
 new botSkin[MAX_BOTS];
@@ -238,7 +242,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 
 		new botName[16];
 		format(botName,sizeof(botName),#TBOT_STR_ID,botId);
-		print(botName);
+
 		new scriptName[48];
 		if(botCar[botId] != 0){
 			format(scriptName,sizeof(scriptName),"tbotcarsingle%d",botId);
@@ -246,6 +250,39 @@ public OnPlayerCommandText(playerid, cmdtext[])
             format(scriptName,sizeof(scriptName),"tbotfootsingle%d",botId);
 		}
 		ConnectNPC(botName,scriptName);
+		return 1;
+
+	} else if( !strcmp("/tgplay",cmd)){
+	    new groupIdStr[32];
+		groupIdStr = strtok(cmdtext,idx);
+		if( !strlen(groupIdStr) ){
+            SendClientMessage(playerid,0xFF000000,"Использование: /tgplay [ID] - старт группы ботов (для выбора группы - /tgroup)");
+			return 1;
+		}
+		new groupId = strval(groupIdStr);
+
+		for(new botId = 0;botId<MAX_BOTS;botId++){
+		    if(botGroup[botId] == groupId){
+				new botName[16];
+				format(botName,sizeof(botName),#TBOT_STR_ID,botId);
+				new scriptName[48];
+				if(botCar[botId] != 0){
+					format(scriptName,sizeof(scriptName),"tbotcarsingle%d",botId);
+				} else {
+		            format(scriptName,sizeof(scriptName),"tbotfootsingle%d",botId);
+				}
+				ConnectNPC(botName,scriptName);
+			}
+		}
+		return 1;
+
+	} else if( !strcmp("/tgroup",cmd)){
+	    new groupIdStr[32];
+		groupIdStr = strtok(cmdtext,idx);
+		playerGroup[playerid] = strval(groupIdStr);
+		new groupMessage[32];
+		format(groupMessage,sizeof(groupMessage),"Установлена группа №%d",strval(groupIdStr));
+		SendClientMessage(playerid,0xFF000000,groupMessage);
 		return 1;
 
 	} else if ( !strcmp("/tsingle",cmd) ){
@@ -258,6 +295,8 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			//старт записи бота
 			if(tb_IsRecCorrect(playerid,botId,isHaveArg)){
 				isSingle[botId] = true;
+				botGroup[botId] = playerGroup[playerid];
+
 				tb_StartRecord(playerid,botId,GetPlayerState(playerid));
 			}
 		} else {
@@ -302,6 +341,7 @@ public OnFilterScriptInit(){
 	print("            Troner bots loaded          ");
 	print("--------------------------------------\n");
 	for(new i = 0;i<MAX_BOTS;i++){
+		botGroup[i] = 0;
 	    bots[i] = -1;
 	    botCar[i] = 0;
 	    isSingle[i] = false;
@@ -351,6 +391,7 @@ public OnPlayerConnect(playerid){
 			}
 		}
 	} else {
+        playerGroup[playerid] = 0;
 		isPlayerRecording[playerid] = PLAYER_RECORDING_TYPE_NONE;
 		isBotRecording[botThatPlayerRecording[playerid]] = false;
 		botThatPlayerRecording[playerid] = -1;
