@@ -90,6 +90,10 @@ tb_IsRecCorrect(playerid,botId,isHaveArg){
 
 tb_StartRecord(playerid,botId,playerState){
 
+	new debugMessage[32];
+	format(debugMessage,sizeof(debugMessage),"Создаю бота №%d",botId);
+	SendClientMessage(playerid,0xFF000000,debugMessage);
+
 	botThatPlayerRecording[playerid] = botId;
 	botSkin[botId] = GetPlayerSkin(playerid);
 	isPlayerRecording[playerid] = playerState == PLAYER_STATE_DRIVER ? PLAYER_RECORDING_TYPE_DRIVER : PLAYER_RECORDING_TYPE_ONFOOT;
@@ -101,10 +105,10 @@ tb_StartRecord(playerid,botId,playerState){
 		format(recFile,sizeof(recFile),"tbotfoot%d",botId);
 		StartRecordingPlayerData(playerid,PLAYER_RECORDING_TYPE_ONFOOT,recFile);
 	} else if (playerState == PLAYER_STATE_DRIVER){
+		botCar[botId] = GetPlayerVehicleID(playerid);
         format(recFile,sizeof(recFile),"tbotcar%d",botId);
 		StartRecordingPlayerData(playerid,PLAYER_RECORDING_TYPE_DRIVER,recFile);
 
-		botCar[botId] = GetPlayerVehicleID(playerid);
 		new carFilename[48];
 		format(carFilename,sizeof(carFilename),"tbotcar%d.cfg",botId);
 		new File:carFile = fopen(carFilename,io_write);
@@ -197,11 +201,11 @@ public OnPlayerCommandText(playerid, cmdtext[])
 {
 	new cmd[64], idx;
 	cmd = strtok(cmdtext,idx);
-	if ( !strcmp("/thelp",cmdtext)){
+	if ( !strcmp("/thelp",cmdtext) ){
 		tb_SendHelp(playerid);
 		return 1;
 
-	} else if ( !strcmp("/tbot",cmd)){
+	} else if ( !strcmp("/tbot",cmd) ){
 		new botIdStr[32];
 		botIdStr = strtok(cmdtext,idx);
 	    new isHaveArg = strlen(botIdStr);
@@ -215,6 +219,35 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			}
 		} else {
 			tb_StopRecord(playerid,botId,GetPlayerState(playerid));
+		}
+		return 1;
+	} else if ( !strcmp("/tdel",cmd) ){
+        new botIdStr[32];
+		botIdStr = strtok(cmdtext,idx);
+		if( !strlen(botIdStr) ){
+            SendClientMessage(playerid,0xFF000000,"Использование: /tremove [ID] - диапазон 0-49 или /tremove all");
+			return 1;
+		}
+		if( !strcmp("all",botIdStr,false,3) ){
+            SendClientMessage(playerid,0xFF000000,"Удаляем всех ботов");
+            for(new i = 0;i<MAX_BOTS;i++){
+				if(bots[i] != -1){
+					Kick(bots[i]);
+					bots[i] = -1;
+				}
+			}
+			return 1;
+		}
+		new botId = strval(botIdStr);
+
+		if((botId >=MAX_BOTS || botId < 0) ){
+            SendClientMessage(playerid,0xFF000000,"Неверный диапазон! Использование: /tremove [ID] - диапазон 0-49 или /tremove all");
+			return 1;
+		}
+
+		if(bots[botId] != -1){
+			Kick(bots[botId]);
+			bots[botId] = -1;
 		}
 		return 1;
 	}
@@ -287,13 +320,15 @@ public OnPlayerConnect(playerid){
 public OnPlayerDisconnect(playerid,reason){
 	new botName[32];
 	GetPlayerName(playerid,botName,sizeof(botName));
-	if(!strcmp("TBot",botName,false,4) && isNicksSee==1 && IsPlayerNPC(playerid)){
+	if(!strcmp("TBot",botName,false,4) && IsPlayerNPC(playerid)){
         new nameSplit[24][2];
 		split(botName,nameSplit,'t');
 		new botId = strval(nameSplit[1]);
 		for(new i = 0;i<MAX_PLAYERS;i++){
 			if(bots[botId] == playerid){
-				Delete3DTextLabel(botNicks[i]);
+				if(isNicksSee==1){
+					Delete3DTextLabel(botNicks[i]);
+				}
 				bots[botId] = -1;
 				break;
 			}
