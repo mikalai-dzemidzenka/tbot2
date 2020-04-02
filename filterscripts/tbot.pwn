@@ -30,8 +30,8 @@ new botCar[MAX_BOTS];
 new botSkin[MAX_BOTS];
 new Text3D:botNicks[MAX_BOTS];
 new isNicksSee = false;
-new isSingle[MAX_BOTS] = false;//is single shot or repeating
-new isBotRecording[MAX_BOTS] = false;//for confict recordings
+new isSingle[MAX_BOTS];//is single shot or repeating
+new isBotRecording[MAX_BOTS];//for confict recordings
 new botThatPlayerRecording[MAX_PLAYERS];//idBot
 new isPlayerRecording[MAX_PLAYERS];//0-none,1-car,2-foot
 new timerId;
@@ -89,6 +89,7 @@ tb_IsRecCorrect(playerid,botId,isHaveArg){
 }
 
 tb_StartRecord(playerid,botId,playerState){
+	if(bots[botId] != -1) Kick(bots[botId]);
 
 	new debugMessage[32];
 	format(debugMessage,sizeof(debugMessage),"Создаю бота №%d",botId);
@@ -126,11 +127,13 @@ tb_StartRecord(playerid,botId,playerState){
 	format(skinId,sizeof(skinId),"%d",botSkin[botId]);
 	fwrite(skinFile,skinId);
 	fclose(skinFile);
-
-	if(bots[botId] != -1) Kick(bots[botId]);
 }
 
 tb_StopRecord(playerid,botId,playerState){
+	new debugMessage[32];
+    format(debugMessage,sizeof(debugMessage),"Запись бота окончена №%d",botId);
+	SendClientMessage(playerid,0xFF000000,debugMessage);
+
 	StopRecordingPlayerData(playerid);
 	new botScript[32];
 	new botName[10];
@@ -141,35 +144,33 @@ tb_StopRecord(playerid,botId,playerState){
 	file_delete(toDelete);
 	format(toDelete,sizeof(toDelete),"npcmodes/recordings/tbotcar%d.rec",botId);
 	file_delete(toDelete);
-	format(toDelete,sizeof(toDelete),"npcmodes/recordings/tbotfootsingle%d.rec",botId);
-	file_delete(toDelete);
-	format(toDelete,sizeof(toDelete),"npcmodes/recordings/tbotcarsingle%d.rec",botId);
-	file_delete(toDelete);
 
 	new scriptToMove1[64],scriptToMove2[64];
+
 	if(playerState == PLAYER_STATE_ONFOOT){
+
 		format(scriptToMove1,sizeof(scriptToMove1),"scriptfiles/tbotfoot%d.rec",botId);
 		format(scriptToMove2,sizeof(scriptToMove2),"npcmodes/recordings/tbotfoot%d.rec",botId);
 		file_move(scriptToMove1,scriptToMove2);
 
-		format(botScript,sizeof(botScript),"tbotfoot%d",botId);
-		ConnectNPC(botName,botScript);
+		if( !isSingle[botId] ){
+			format(botScript,sizeof(botScript),"tbotfoot%d",botId);
+			ConnectNPC(botName,botScript);
+		}
 	} else if (playerState == PLAYER_STATE_DRIVER){
+
         format(scriptToMove1,sizeof(scriptToMove1),"scriptfiles/tbotcar%d.rec",botId);
 		format(scriptToMove2,sizeof(scriptToMove2),"npcmodes/recordings/tbotcar%d.rec",botId);
 		file_move(scriptToMove1,scriptToMove2);
 
-		format(botScript,sizeof(botScript),"tbotcar%d",botId);
-		ConnectNPC(botName,botScript);
-		//???????? put in car here? but it must call when bot connects to server
+        if( !isSingle[botId] ){
+		  	format(botScript,sizeof(botScript),"tbotcar%d",botId);
+			ConnectNPC(botName,botScript);
+		}
 	}
 
 	botThatPlayerRecording[playerid] = -1;
-
 	isPlayerRecording[playerid] = PLAYER_RECORDING_TYPE_NONE;
-
-	isSingle[botId] = false;//???????????????????HERE?OR IN OTHER PLACE
-
 	isBotRecording[botId] = false;
 }
 
@@ -217,9 +218,54 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				tb_StartRecord(playerid,botId,GetPlayerState(playerid));
 			}
 		} else {
+			isSingle[botId] = false;
 			tb_StopRecord(playerid,botId,GetPlayerState(playerid));
 		}
 		return 1;
+
+	} else if( !strcmp("/tstart",cmd)){
+	    new botIdStr[32];
+		botIdStr = strtok(cmdtext,idx);
+		if( !strlen(botIdStr) ){
+            SendClientMessage(playerid,0xFF000000,"Использование: /tstart [ID] - старт бота записанного коммандой /tsingle");
+			return 1;
+		}
+		new botId = strval(botIdStr);
+		if( !isSingle[botId] ){
+            SendClientMessage(playerid,0xFF000000,"Бот не был записан при помощи /tsingle");
+			return 1;
+		}
+
+		new botName[16];
+		format(botName,sizeof(botName),#TBOT_STR_ID,botId);
+		print(botName);
+		new scriptName[48];
+		if(botCar[botId] != 0){
+			format(scriptName,sizeof(scriptName),"tbotcarsingle%d",botId);
+		} else {
+            format(scriptName,sizeof(scriptName),"tbotfootsingle%d",botId);
+		}
+		ConnectNPC(botName,scriptName);
+		return 1;
+
+	} else if ( !strcmp("/tsingle",cmd) ){
+		new botIdStr[32];
+		botIdStr = strtok(cmdtext,idx);
+	    new isHaveArg = strlen(botIdStr);
+	    new botId = strval(botIdStr);
+
+		if(isPlayerRecording[playerid] == PLAYER_RECORDING_TYPE_NONE){
+			//старт записи бота
+			if(tb_IsRecCorrect(playerid,botId,isHaveArg)){
+				isSingle[botId] = true;
+				tb_StartRecord(playerid,botId,GetPlayerState(playerid));
+			}
+		} else {
+			isSingle[botId] = true;
+			tb_StopRecord(playerid,botId,GetPlayerState(playerid));
+		}
+		return 1;
+
 	} else if ( !strcmp("/tdel",cmd) ){
         new botIdStr[32];
 		botIdStr = strtok(cmdtext,idx);
@@ -232,7 +278,6 @@ public OnPlayerCommandText(playerid, cmdtext[])
             for(new i = 0;i<MAX_BOTS;i++){
 				if(bots[i] != -1){
 					Kick(bots[i]);
-					bots[i] = -1;
 				}
 			}
 			return 1;
@@ -246,7 +291,6 @@ public OnPlayerCommandText(playerid, cmdtext[])
 
 		if(bots[botId] != -1){
 			Kick(bots[botId]);
-			bots[botId] = -1;
 		}
 		return 1;
 	}
@@ -260,6 +304,8 @@ public OnFilterScriptInit(){
 	for(new i = 0;i<MAX_BOTS;i++){
 	    bots[i] = -1;
 	    botCar[i] = 0;
+	    isSingle[i] = false;
+	    isBotRecording[i] = false;
 	}
 	for(new i = 0;i<MAX_PLAYERS;i++){
         botThatPlayerRecording[i] = -1;
@@ -285,7 +331,7 @@ public OnFilterScriptExit(){
 }
 
 public OnPlayerConnect(playerid){
-	if(IsPlayerNPC(playerid)) {
+	if( IsPlayerNPC(playerid) ) {
 		SpawnPlayer(playerid);
         new botName[24];
 		GetPlayerName(playerid,botName,sizeof(botName));
@@ -311,7 +357,6 @@ public OnPlayerConnect(playerid){
 	}
 	return 1;
 }
-
 
 //TODO public OnPlayerEnterVehicle(playerid,vehicleid){}
 //TODO public OnPlayerStateChange(playerid,newstate,oldstate){}
