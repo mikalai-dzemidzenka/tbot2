@@ -186,13 +186,12 @@ tb_SendHelp(playerid){
 	SendClientMessage(playerid,0x00FF0000,"/tbot [ID 0-49] - начало/конец записи бота (бесконечное повторение)");
 	SendClientMessage(playerid,0x00FF0000,"/tsingle [ID 0-49] - ");
 	SendClientMessage(playerid,0x00FF0000,"/tstart [ID 0-49] - ");
-	SendClientMessage(playerid,0x00FF0000,"/treload [ID 0-49] - ");
-	SendClientMessage(playerid,0x00FF0000,"/tnpclist - ");
-	SendClientMessage(playerid,0x00FF0000,"/tremove [ID 0-49] - ");
+	SendClientMessage(playerid,0x00FF0000,"/trs [ID 0-49] - ");
+	SendClientMessage(playerid,0x00FF0000,"/tlist - ");
+	SendClientMessage(playerid,0x00FF0000,"/tdel [ID 0-49] - удалить бота по id или /tdel all - удалить всех");
 	SendClientMessage(playerid,0x00FF0000,"/tnicks - ");
-	SendClientMessage(playerid,0x00FF0000,"/tgroup [group ID] -");
-	SendClientMessage(playerid,0x00FF0000,"/tgstart [group ID] - ");
-	SendClientMessage(playerid,0x00FF0000,"/tbothelp - ");
+	SendClientMessage(playerid,0x00FF0000,"/tgroup [group ID] - ");
+	SendClientMessage(playerid,0x00FF0000,"/tgplay [group ID] - ");
 	return 1;
 }
 
