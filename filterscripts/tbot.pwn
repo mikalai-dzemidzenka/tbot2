@@ -25,6 +25,9 @@ bots[botId][] = {27,520,240,false,...};
 
 */
 
+// TODO chains - https://wiki.sa-mp.com/wiki/NPC:OnPlayerText
+
+new botChain[MAX_BOTS]; // Work in progress
 
 new playerGroup[MAX_PLAYERS];
 new botGroup[MAX_BOTS];
@@ -187,17 +190,16 @@ tb_AttachBotNick(botId){
 
 tb_SendHelp(playerid){
     SendClientMessage(playerid,0xFF000000,"Боты для машиним by Troner");
-	SendClientMessage(playerid,0x00FF0000,"Комманды:");
+	SendClientMessage(playerid,0x00FF0000,"Команды:");
 	SendClientMessage(playerid,0x00FF0000,"/tbot [ID 0-49] - начало/конец записи бота (бесконечное повторение)");
 	SendClientMessage(playerid,0x00FF0000,"/tsingle [ID 0-49] - записать бота без зацикливания");
-	SendClientMessage(playerid,0x00FF0000,"/tstart [ID 0-49] - запустить бота записанного при помощи /tsingle");
 	SendClientMessage(playerid,0x00FF0000,"/trs [ID 0-49] - перезапустить бота");
 	SendClientMessage(playerid,0x00FF0000,"/tgrs [group ID] - перезапустить группу ботов");
-	SendClientMessage(playerid,0x00FF0000,"/tlist - В БУДУЮЩИХ ВЕРСИЯХ");
+	SendClientMessage(playerid,0x00FF0000,"/tlist - список ботов");
 	SendClientMessage(playerid,0x00FF0000,"/tdel [ID 0-49] - удалить бота по id или /tdel all - удалить всех");
-	SendClientMessage(playerid,0x00FF0000,"/tnicks - В БУДУЮЩИХ ВЕРСИЯХ");
+	SendClientMessage(playerid,0x00FF0000,"/tnicks - включить ники ботов");
 	SendClientMessage(playerid,0x00FF0000,"/tgroup [group ID] - установить группу ()");
-	SendClientMessage(playerid,0x00FF0000,"/tgplay [group ID] - активировать ботов в группе (запись - /tsingle )");
+	SendClientMessage(playerid,0x00FF0000,"/tgplay [group ID] - запустить группу ботов (запись - /tsingle )");
 	return 1;
 }
 
@@ -208,6 +210,16 @@ public OnPlayerCommandText(playerid, cmdtext[])
 	cmd = strtok(cmdtext,idx);
 	if ( !strcmp("/thelp",cmdtext) ){
 		tb_SendHelp(playerid);
+		return 1;
+
+	} else if ( !strcmp("/tlist",cmdtext) ){
+		for(new i = 0;i<MAX_BOTS;i++){
+			if(bots[i] != -1){
+				new botList[32];
+				format(botList,sizeof(botList),"TBot%d - ID: %d",i,bots[i]);
+				SendClientMessage(playerid,0xFF000000,botList);
+			}
+		}
 		return 1;
 
 	} else if ( !strcmp("/tbot",cmd) ){
@@ -228,11 +240,48 @@ public OnPlayerCommandText(playerid, cmdtext[])
 		}
 		return 1;
 
-	} else if( !strcmp("/tstart",cmd)){
-	    new botIdStr[32];
+	} else if( !strcmp("/tgroup",cmd)){
+	    new groupIdStr[32];
+		groupIdStr = strtok(cmdtext,idx);
+		playerGroup[playerid] = strval(groupIdStr);
+		new groupMessage[32];
+		format(groupMessage,sizeof(groupMessage),"Установлена группа №%d",strval(groupIdStr));
+		SendClientMessage(playerid,0xFF000000,groupMessage);
+		return 1;
+
+	} else if ( !strcmp("/tgrs",cmd) ){
+		new groupIdStr[32];
+		groupIdStr = strtok(cmdtext,idx);
+		new groupId;
+		if( !strlen(groupIdStr) ){
+            groupId = playerGroup[playerid];
+		} else {
+		 	groupId = strval(groupIdStr);
+	 	}
+		for(new botId = 0;botId<MAX_BOTS;botId++){
+			if(botGroup[botId] == groupId){
+				if(bots[botId] != -1){
+					Kick(bots[botId]);
+
+					new scriptName[48];
+					if(botCar[botId] != 0){
+						format(scriptName,sizeof(scriptName),"tbotcarsingle%d",botId);
+					} else {
+			            format(scriptName,sizeof(scriptName),"tbotfootsingle%d",botId);
+					}
+					new botName[10];
+					format(botName,sizeof(botName),#TBOT_STR_ID,botId);
+					ConnectNPC(botName,scriptName);
+				}
+			}
+		}
+		return 1;
+
+	} else if ( !strcmp("/trs",cmd) ){
+		new botIdStr[32];
 		botIdStr = strtok(cmdtext,idx);
 		if( !strlen(botIdStr) ){
-            SendClientMessage(playerid,0xFF000000,"Использование: /tstart [ID] - старт бота записанного коммандой /tsingle");
+            SendClientMessage(playerid,0xFF000000,"Использование: /trs [ID] - запуск/перезапуск бота записанного коммандой /tsingle");
 			return 1;
 		}
 		new botId = strval(botIdStr);
@@ -240,17 +289,37 @@ public OnPlayerCommandText(playerid, cmdtext[])
             SendClientMessage(playerid,0xFF000000,"Бот не был записан при помощи /tsingle");
 			return 1;
 		}
-
-		new botName[16];
-		format(botName,sizeof(botName),#TBOT_STR_ID,botId);
-
+		if(bots[botId] != -1){
+			Kick(bots[botId]);
+		}
 		new scriptName[48];
 		if(botCar[botId] != 0){
 			format(scriptName,sizeof(scriptName),"tbotcarsingle%d",botId);
 		} else {
             format(scriptName,sizeof(scriptName),"tbotfootsingle%d",botId);
 		}
+		new botName[10];
+		format(botName,sizeof(botName),#TBOT_STR_ID,botId);
 		ConnectNPC(botName,scriptName);
+
+		return 1;
+
+	} else if ( !strcmp("/tnicks",cmd) ){
+		if(isNicksSee == 0){
+      		isNicksSee = 1;
+			for(new i=0; i<MAX_BOTS;i++){
+			    if(bots[i]!=-1){
+					tb_AttachBotNick(i);
+				}
+			}
+		} else {
+			isNicksSee = 0;
+			for(new i=0; i<MAX_BOTS;i++){
+			    if(bots[i]!=-1){
+					Delete3DTextLabel(botNicks[i]);
+				}
+			}
+		}
 		return 1;
 
 	} else if( !strcmp("/tgplay",cmd)){
@@ -275,60 +344,6 @@ public OnPlayerCommandText(playerid, cmdtext[])
 				ConnectNPC(botName,scriptName);
 			}
 		}
-		return 1;
-
-	} else if( !strcmp("/tgroup",cmd)){
-	    new groupIdStr[32];
-		groupIdStr = strtok(cmdtext,idx);
-		playerGroup[playerid] = strval(groupIdStr);
-		new groupMessage[32];
-		format(groupMessage,sizeof(groupMessage),"Установлена группа №%d",strval(groupIdStr));
-		SendClientMessage(playerid,0xFF000000,groupMessage);
-		return 1;
-
-	} else if ( !strcmp("/tgrs",cmd) ){
-		new groupIdStr[32];
-		groupIdStr = strtok(cmdtext,idx);
-		new groupId = strval(groupIdStr);
-		for(new botId = 0;botId<MAX_BOTS;botId++){
-			if(botGroup[botId] == groupId){
-				if(bots[botId] != -1){
-					Kick(bots[botId]);
-				}
-				new scriptName[48];
-				if(botCar[botId] != 0){
-					format(scriptName,sizeof(scriptName),"tbotcarsingle%d",botId);
-				} else {
-		            format(scriptName,sizeof(scriptName),"tbotfootsingle%d",botId);
-				}
-				new botName[10];
-				format(botName,sizeof(botName),#TBOT_STR_ID,botId);
-				ConnectNPC(botName,scriptName);
-			}
-		}
-		return 1;
-
-	} else if ( !strcmp("/trs",cmd) ){
-		new botIdStr[32];
-		botIdStr = strtok(cmdtext,idx);
-		new botId = strval(botIdStr);
-		if( !isSingle[botId] ){
-            SendClientMessage(playerid,0xFF000000,"Бот не был записан при помощи /tsingle");
-			return 1;
-		}
-		if(bots[botId] != -1){
-			Kick(bots[botId]);
-		}
-		new scriptName[48];
-		if(botCar[botId] != 0){
-			format(scriptName,sizeof(scriptName),"tbotcarsingle%d",botId);
-		} else {
-            format(scriptName,sizeof(scriptName),"tbotfootsingle%d",botId);
-		}
-		new botName[10];
-		format(botName,sizeof(botName),#TBOT_STR_ID,botId);
-		ConnectNPC(botName,scriptName);
-
 		return 1;
 
 	} else if ( !strcmp("/tsingle",cmd) ){
@@ -378,6 +393,28 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			Kick(bots[botId]);
 		}
 		return 1;
+//BOTS ONLY
+	} else if( !strcmp("/bot_next_chain",cmdtext)){
+	/*
+		new thisIsBot = false;
+		new botId = -1;
+		for(new i =0;i<MAX_BOTS;i++){
+			if(bots[i] == playerid){
+			    botId = i;
+                thisIsBot = true;
+				break;
+			}
+		}
+		if(!thisIsBot){
+		    //player send that command so send him unknown command message
+			return 0;
+		}
+
+		TODO
+		new nextBot = botChain[botId];
+		???
+		ConnectNPC()
+		*/
 	}
 	return 0;
 }
@@ -458,7 +495,7 @@ public OnPlayerDisconnect(playerid,reason){
 		for(new i = 0;i<MAX_PLAYERS;i++){
 			if(bots[botId] == playerid){
 				if(isNicksSee==1){
-					Delete3DTextLabel(botNicks[i]);
+					Delete3DTextLabel(botNicks[botId]);
 				}
 				bots[botId] = -1;
 				break;
